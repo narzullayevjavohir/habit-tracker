@@ -21,10 +21,11 @@ const NavigationBar = () => {
 
   const navItems: NavItem[] = [
     { href: "/", label: "Home", icon: "🏠" },
-    { href: "/all-habits", label: "All Habits", icon: "📊" },
+    { href: "/all-habits", label: "All Habits", icon: "🎖️" },
     { href: "/regular-habits", label: "Regular Habits", icon: "🔄" },
     { href: "/new-habits", label: "New Habits", icon: "✨" },
     { href: "/methods", label: "Methods", icon: "📚" },
+    { href: "/statistics", label: "Statistics", icon: "📊" },
     { href: "/contact", label: "Contact", icon: "📞" },
   ];
 

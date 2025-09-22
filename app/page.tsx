@@ -1,50 +1,57 @@
-// app/page.tsx - Generic home page structure
+// app/page.tsx - Home page with Clerk authentication
+import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
-export default function HomePage() {
-  // Mock data - replace with your actual data source
-  const userData = {
-    isLoggedIn: false, // Change based on your auth state
-    streak: 12,
-    todayProgress: { completed: 3, total: 5 },
-    recentActivities: [
-      {
-        habit: "Morning Meditation",
-        time: "Today, 7:30 AM",
-        status: "completed" as const,
-      },
-      {
-        habit: "Exercise",
-        time: "Yesterday, 6:00 PM",
-        status: "completed" as const,
-      },
-      {
-        habit: "Reading",
-        time: "Yesterday, 9:00 PM",
-        status: "missed" as const,
-      },
-    ],
+export default async function HomePage() {
+  const user = await currentUser();
+
+  const getUserHabitData = async (userId: string) => {
+    return {
+      streak: 12,
+      todayProgress: { completed: 3, total: 5 },
+      recentActivities: [
+        {
+          habit: "Morning Meditation",
+          time: "Today, 7:30 AM",
+          status: "completed" as const,
+        },
+        {
+          habit: "Exercise",
+          time: "Yesterday, 6:00 PM",
+          status: "completed" as const,
+        },
+        {
+          habit: "Reading",
+          time: "Yesterday, 9:00 PM",
+          status: "missed" as const,
+        },
+      ],
+    };
   };
+
+  const userData = user ? await getUserHabitData(user.id) : null;
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Hero Section */}
       <section className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">
-          Build Better Habits,{" "}
-          <span className="text-primary">One Day at a Time</span>
+          {user
+            ? `Welcome back, ${user.firstName || "Friend"}! 👋`
+            : "Build Better Habits"}
         </h1>
         <p className="text-xl text-muted-foreground mb-6 max-w-2xl mx-auto">
-          Track your progress, stay motivated, and transform your life with
-          consistent daily habits.
+          {user
+            ? "Keep up the great work on your habit journey!"
+            : "Track your progress, stay motivated, and transform your life with consistent daily habits."}
         </p>
-        {!userData.isLoggedIn ? (
+        {!user ? (
           <div className="space-x-4">
             <Button asChild size="lg">
-              <Link href="/all-habits">Get Started Free</Link>
+              <Link href="/new-habits">Get Started Free</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="/methods">Learn More</Link>
@@ -53,7 +60,7 @@ export default function HomePage() {
         ) : (
           <div className="space-x-4">
             <Button asChild size="lg">
-              <Link href="/habits">View My Habits</Link>
+              <Link href="/all-habits">View My Habits</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="/new-habits">Add New Habit</Link>
@@ -62,8 +69,8 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Stats Overview - Only show if logged in */}
-      {userData.isLoggedIn && (
+      {/* Stats Overview - Only show if user is logged in */}
+      {user && userData && (
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <Card>
             <CardHeader>
@@ -88,7 +95,7 @@ export default function HomePage() {
                   />
                 </div>
                 <Button asChild className="w-full">
-                  <Link href="/habits">Check-in Habits</Link>
+                  <Link href="/all-habits">Check-in Habits</Link>
                 </Button>
               </div>
             </CardContent>
@@ -117,7 +124,7 @@ export default function HomePage() {
                 <Link href="/new-habits">Add New Habit</Link>
               </Button>
               <Button asChild variant="outline" className="w-full">
-                <Link href="/stats">View Statistics</Link>
+                <Link href="/statistics">View Statistics</Link>
               </Button>
               <Button asChild variant="outline" className="w-full">
                 <Link href="/settings">Settings</Link>
@@ -130,7 +137,7 @@ export default function HomePage() {
       {/* Features Section - Show for all users */}
       <section className="mb-12">
         <h2 className="text-2xl font-bold text-center mb-8">
-          Why Choose HabitTracker?
+          {user ? "Your Habit Journey" : "Why Choose HabitTracker?"}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
@@ -141,8 +148,8 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p>
-                See your improvement with beautiful charts and streak tracking
-                that motivates you to keep going.
+                Track your habits with beautiful charts, streaks, and progress
+                indicators that keep you motivated.
               </p>
             </CardContent>
           </Card>
@@ -155,7 +162,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p>
-                Customizable notifications that help you build consistency
+                Personalized notifications that help you build consistency
                 without feeling overwhelmed.
               </p>
             </CardContent>
@@ -169,16 +176,16 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p>
-                Based on scientific research and successful habit-building
-                strategies from experts.
+                Based on atomic habits, habit stacking, and other
+                scientifically-backed strategies for success.
               </p>
             </CardContent>
           </Card>
         </div>
       </section>
 
-      {/* Recent Activity - Only show if logged in */}
-      {userData.isLoggedIn && userData.recentActivities.length > 0 && (
+      {/* Recent Activity - Only show if user is logged in */}
+      {user && userData && userData.recentActivities.length > 0 && (
         <section className="mb-12">
           <Card>
             <CardHeader>
@@ -216,8 +223,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* CTA Section */}
-      {!userData.isLoggedIn && (
+      {!user && (
         <section className="text-center bg-muted rounded-lg p-8">
           <h2 className="text-2xl font-bold mb-4">
             Ready to Transform Your Habits?
@@ -226,7 +232,7 @@ export default function HomePage() {
             Join thousands of users building better lives one habit at a time.
           </p>
           <Button asChild size="lg">
-            <Link href="/signup">Start Your Journey Today</Link>
+            <Link href="/sign-up">Start Your Journey Today</Link>
           </Button>
         </section>
       )}
