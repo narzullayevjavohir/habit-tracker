@@ -1,5 +1,6 @@
 // components/navigation-bar.tsx
 "use client";
+import { useUser, UserButton } from "@clerk/nextjs";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -15,7 +16,12 @@ interface NavItem {
   icon: string;
 }
 
-const NavigationBar = () => {
+function NavigationBar() {
+  const { isLoaded, isSignedIn } = useUser();
+
+  if (!isLoaded || !isSignedIn) {
+    return null; // Don't show nav for non-authenticated users
+  }
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const pathname = usePathname();
 
@@ -36,14 +42,14 @@ const NavigationBar = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
+      <div className="container flex h-14 items-center px-5">
         {/* Logo */}
         <div className="mr-4 flex">
           <Link href="/" className="flex items-center space-x-2">
             <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center">
               <span className="text-white text-xs font-bold">H</span>
             </div>
-            <span className="font-bold text-lg">HabitTracker</span>
+            <span className="font-bold text-lg">Habit Tracker</span>
           </Link>
         </div>
 
@@ -116,9 +122,13 @@ const NavigationBar = () => {
             </SheetContent>
           </Sheet>
         </div>
+        {/* User Button */}
+        <div className="flex items-center space-x-4">
+          <UserButton afterSignOutUrl="/" />
+        </div>
       </div>
     </header>
   );
-};
+}
 
 export default NavigationBar;
