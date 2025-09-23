@@ -20,18 +20,19 @@ function NavigationBar() {
   const { isLoaded, isSignedIn } = useUser();
 
   if (!isLoaded || !isSignedIn) {
-    return null; // Don't show nav for non-authenticated users
+    return null;
   }
+
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const pathname = usePathname();
 
   const navItems: NavItem[] = [
     { href: "/", label: "Home", icon: "🏠" },
     { href: "/all-habits", label: "All Habits", icon: "🎖️" },
-    { href: "/regular-habits", label: "Regular Habits", icon: "🔄" },
+    { href: "/ratings", label: "Overall Ratings", icon: "🏆" },
     { href: "/new-habits", label: "New Habits", icon: "✨" },
     { href: "/methods", label: "Methods", icon: "📚" },
-    { href: "/statistics", label: "Statistics", icon: "📊" },
+    { href: "/habit-shop", label: "Habit Shop", icon: "🛒" },
     { href: "/contact", label: "Contact", icon: "📞" },
   ];
 

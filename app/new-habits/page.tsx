@@ -42,7 +42,7 @@ export default function CreateHabitPage() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/habits">← Back to Habits</Link>
+          <Link href="/all-habits">← Back to Habits</Link>
         </Button>
       </div>
 
