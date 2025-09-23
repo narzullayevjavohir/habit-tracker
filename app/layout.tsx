@@ -23,7 +23,7 @@ export default async function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>
+        <body className={inter.className} suppressHydrationWarning>
           {user && <NavigationBar />}
           <main className={user ? "min-h-screen bg-gray-50" : ""}>
             {children}
