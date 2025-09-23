@@ -1,4 +1,3 @@
-// components/navigation-bar.tsx
 "use client";
 import { useUser, UserButton } from "@clerk/nextjs";
 
@@ -29,10 +28,10 @@ function NavigationBar() {
   const navItems: NavItem[] = [
     { href: "/", label: "Home", icon: "🏠" },
     { href: "/all-habits", label: "All Habits", icon: "🎖️" },
-    { href: "/ratings", label: "Overall Ratings", icon: "🏆" },
+    { href: "/ratings", label: "Ratings", icon: "🏆" },
     { href: "/new-habits", label: "New Habits", icon: "✨" },
-    { href: "/methods", label: "Methods", icon: "📚" },
-    { href: "/habit-shop", label: "Habit Shop", icon: "🛒" },
+    { href: "/events", label: "Events", icon: "❄️" },
+    { href: "/habit-shop", label: "Shop", icon: "🛒" },
     { href: "/contact", label: "Contact", icon: "📞" },
   ];
 

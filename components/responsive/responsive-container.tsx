@@ -167,8 +167,3 @@ export function ResponsiveText({
 
   return <span className={`${getTextSize()} ${className}`}>{children}</span>;
 }
-
-
-
-
-
