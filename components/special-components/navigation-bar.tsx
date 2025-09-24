@@ -16,14 +16,14 @@ interface NavItem {
 }
 
 function NavigationBar() {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  const pathname = usePathname();
   const { isLoaded, isSignedIn } = useUser();
 
   if (!isLoaded || !isSignedIn) {
     return null;
   }
-
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const pathname = usePathname();
 
   const navItems: NavItem[] = [
     { href: "/", label: "Home", icon: "🏠" },
