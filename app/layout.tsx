@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import NavigationBar from "../components/special-components/navigation-bar";
+import { TopProgressBar } from "../components/special-components/top-progress-bar";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -22,8 +23,9 @@ export default async function RootLayout({
 
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body className={inter.className} suppressHydrationWarning>
+          <TopProgressBar />
           {user && <NavigationBar />}
           <main className={user ? "min-h-screen bg-gray-50" : ""}>
             {children}

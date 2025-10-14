@@ -11,6 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShoppingCart, Coins, Check, Clock, Plus, Minus } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShopItemDetails } from "@/components/shop/shop-item-details";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useToast } from "@/hooks/useToast";
+import { ShopItem } from "@/types/shop";
+import { cn } from "@/lib/utils";
 
 export default function ShopPage() {
   const { isLoaded, isSignedIn } = useUser();
@@ -33,30 +39,82 @@ export default function ShopPage() {
     isItemPurchased,
   } = useShopStore();
 
+  // New state for enhanced features
+  const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const itemsPerPage = 12;
+
   const { userLevel } = useRatingsStore();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [userPoints, setUserPoints] = useState(0);
   const [isPurchasing, setIsPurchasing] = useState(false);
 
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      fetchShopItems();
-      fetchUserPurchases();
-      loadUserPoints();
-    }
-  }, [isLoaded, isSignedIn, fetchShopItems, fetchUserPurchases]);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
-
   const loadUserPoints = async () => {
-    const points = await getUserPoints();
-    setUserPoints(points);
+    try {
+      const points = await getUserPoints();
+      setUserPoints(points);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to load points",
+        "error"
+      );
+      setUserPoints(0);
+    }
   };
+
+  // Infinite scroll setup
+  const loadMoreItems = async () => {
+    const nextPage = page + 1;
+    const start = (nextPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+
+    if (end >= filteredItems.length) {
+      setHasMore(false);
+    } else {
+      setPage(nextPage);
+    }
+  };
+
+  const { ref: infiniteScrollRef, isLoading: isLoadingMore } =
+    useInfiniteScroll(loadMoreItems, hasMore);
+
+  useEffect(() => {
+    const initializeShop = async () => {
+      try {
+        if (!isLoaded) return;
+
+        if (!isSignedIn) {
+          router.push("/sign-in");
+          return;
+        }
+
+        // Initialize shop data only if user is authenticated
+        await Promise.all([
+          fetchShopItems(),
+          fetchUserPurchases(),
+          loadUserPoints(),
+        ]);
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : "Failed to load shop data",
+          "error"
+        );
+      }
+    };
+
+    initializeShop();
+  }, [
+    isLoaded,
+    isSignedIn,
+    router,
+    fetchShopItems,
+    fetchUserPurchases,
+    showToast,
+  ]);
 
   const filteredItems = shopItems.filter((item) => {
     const matchesSearch =
@@ -77,24 +135,40 @@ export default function ShopPage() {
   ];
 
   const handlePurchase = async (itemId: string) => {
-    setIsPurchasing(true);
-    const success = await purchaseItem(itemId);
-    if (success) {
+    try {
+      setIsPurchasing(true);
+      await purchaseItem(itemId);
       await loadUserPoints(); // Refresh points
+      showToast("Item purchased successfully!", "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to purchase item",
+        "error"
+      );
+    } finally {
+      setIsPurchasing(false);
     }
-    setIsPurchasing(false);
   };
 
   const handleCartPurchase = async () => {
-    setIsPurchasing(true);
-    for (const cartItem of cart) {
-      for (let i = 0; i < cartItem.quantity; i++) {
-        await purchaseItem(cartItem.shop_item.id);
+    try {
+      setIsPurchasing(true);
+      for (const cartItem of cart) {
+        for (let i = 0; i < cartItem.quantity; i++) {
+          await purchaseItem(cartItem.shop_item.id);
+        }
       }
+      await loadUserPoints();
+      clearCart();
+      showToast("All items purchased successfully!", "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to purchase items",
+        "error"
+      );
+    } finally {
+      setIsPurchasing(false);
     }
-    clearCart();
-    await loadUserPoints();
-    setIsPurchasing(false);
   };
 
   const getCategoryCount = (category: string) => {
@@ -103,7 +177,7 @@ export default function ShopPage() {
     ).length;
   };
 
-  if (!isLoaded) {
+  if (!isLoaded || !isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -111,10 +185,21 @@ export default function ShopPage() {
     );
   }
 
-  if (!isSignedIn) return null;
-
   return (
     <div className="container mx-auto px-4 py-6">
+      <ShopItemDetails
+        item={selectedItem}
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        onAddToCart={(item) => {
+          addToCart(item);
+          showToast("Added to cart!", "success");
+          setIsDetailsOpen(false);
+        }}
+        isPurchased={selectedItem ? isItemPurchased(selectedItem.id) : false}
+        userPoints={userPoints}
+      />
+
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full mb-4">
@@ -285,11 +370,14 @@ export default function ShopPage() {
                 return (
                   <Card
                     key={item.id}
-                    className={`relative overflow-hidden ${getRarityColor(
+                    className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg ${getRarityColor(
                       item.rarity
                     )}`}
+                    onClick={() => {
+                      setSelectedItem(item);
+                      setIsDetailsOpen(true);
+                    }}
                   >
-                    {/* Rarity Border */}
                     <div
                       className={`absolute top-0 left-0 w-full h-1 ${
                         item.rarity === "common"
@@ -305,26 +393,33 @@ export default function ShopPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
-                          <span className="text-3xl">{item.icon}</span>
+                          <span className="text-3xl transform transition-transform group-hover:scale-110">
+                            {item.icon}
+                          </span>
                           <div>
                             <CardTitle className="text-lg">
                               {item.name}
                             </CardTitle>
-                            <Badge variant="secondary" className="mt-1">
+                            <Badge
+                              variant="secondary"
+                              className="mt-1 transition-colors hover:bg-primary/20"
+                            >
                               {getCategoryIcon(item.category)} {item.category}
                             </Badge>
                           </div>
                         </div>
                         <Badge
-                          className={
+                          variant="outline"
+                          className={cn(
+                            "capitalize transition-colors",
                             item.rarity === "common"
-                              ? "bg-gray-500"
+                              ? "hover:bg-gray-500"
                               : item.rarity === "rare"
-                              ? "bg-blue-500"
+                              ? "hover:bg-blue-500"
                               : item.rarity === "epic"
-                              ? "bg-purple-500"
-                              : "bg-yellow-500"
-                          }
+                              ? "hover:bg-purple-500"
+                              : "hover:bg-yellow-500"
+                          )}
                         >
                           {item.rarity}
                         </Badge>
@@ -332,7 +427,7 @@ export default function ShopPage() {
                     </CardHeader>
 
                     <CardContent className="space-y-4">
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-gray-600 text-sm line-clamp-2">
                         {item.description}
                       </p>
 
@@ -345,30 +440,50 @@ export default function ShopPage() {
                       )}
 
                       <div className="flex items-center justify-between">
-                        <div className="font-bold text-lg text-yellow-600">
-                          {item.price_points} points
+                        <div className="flex items-center space-x-1 font-bold text-lg text-yellow-600">
+                          <Coins className="w-5 h-5" />
+                          <span>{item.price_points}</span>
                         </div>
                         {isPurchased ? (
-                          <Badge variant="default" className="bg-green-500">
+                          <Badge
+                            variant="default"
+                            className="bg-green-500 animate-in fade-in duration-300"
+                          >
                             <Check className="w-3 h-3 mr-1" />
-                            Purchased
+                            Owned
                           </Badge>
                         ) : (
                           <div className="flex space-x-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => addToCart(item)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addToCart(item);
+                                showToast("Added to cart!", "success");
+                              }}
                               disabled={!canAfford}
+                              className="hover:scale-105 transition-transform"
                             >
                               <Plus className="w-4 h-4" />
                             </Button>
                             <Button
-                              onClick={() => handlePurchase(item.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePurchase(item.id);
+                              }}
                               disabled={!canAfford || isPurchasing}
                               size="sm"
+                              className="hover:scale-105 transition-transform"
                             >
-                              Buy Now
+                              {isPurchasing ? (
+                                <div className="flex items-center">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                  Buying...
+                                </div>
+                              ) : (
+                                "Buy Now"
+                              )}
                             </Button>
                           </div>
                         )}

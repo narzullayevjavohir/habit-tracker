@@ -1,8 +1,6 @@
-// lib/stores/habit-store.ts
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase/client";
 import {
-  Habit,
   HabitWithEntries,
   CreateHabitData,
   UpdateHabitData,

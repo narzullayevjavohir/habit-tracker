@@ -1,11 +1,8 @@
-// app/components/TopProgressBar.tsx
-"use client";
-
 import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import NProgress from "nprogress";
 
-// Configure nprogress
+// Configure NProgress
 NProgress.configure({
   minimum: 0.3,
   easing: "ease",
@@ -13,38 +10,27 @@ NProgress.configure({
   showSpinner: false,
 });
 
-export default function TopProgressBar() {
+export function useNProgress() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Complete progress when route changes
     NProgress.done();
+    return () => {
+      NProgress.remove();
+    };
   }, [pathname, searchParams]);
 
-  useEffect(() => {
-    // Handle click events on links
-    const handleClick = (event: MouseEvent) => {
-      const target = event.currentTarget as HTMLAnchorElement;
-      const href = target.getAttribute("href");
+  const start = () => {
+    NProgress.start();
+  };
 
-      if (href && href.startsWith("/") && href !== pathname) {
-        NProgress.start();
-      }
-    };
+  const done = () => {
+    NProgress.done();
+  };
 
-    // Add click listeners to all links
-    const links = document.querySelectorAll('a[href^="/"]');
-    links.forEach((link) => {
-      link.addEventListener("click", handleClick as EventListener);
-    });
-
-    return () => {
-      links.forEach((link) => {
-        link.removeEventListener("click", handleClick as EventListener);
-      });
-    };
-  }, [pathname]);
-
-  return null;
+  return {
+    start,
+    done,
+  };
 }

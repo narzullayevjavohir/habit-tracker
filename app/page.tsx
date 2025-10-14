@@ -7,7 +7,6 @@ import Link from "next/link";
 export default async function HomePage() {
   const user = await currentUser();
 
-  // If user is not authenticated, show the landing/auth page
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -30,7 +29,6 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Card>
               <CardHeader>
@@ -77,8 +75,7 @@ export default async function HomePage() {
       </div>
     );
   }
-
-  // If user is authenticated, show the dashboard
+  // Here is the data which should be fetched from the database
   const userData = {
     streak: 12,
     todayProgress: { completed: 3, total: 5 },
@@ -103,7 +100,6 @@ export default async function HomePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      {/* Welcome Section */}
       <section className="text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
           Welcome back, {user.firstName || "Friend"}! 👋
@@ -112,8 +108,6 @@ export default async function HomePage() {
           Ready to continue your habit-building journey?
         </p>
       </section>
-
-      {/* Stats Overview */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
@@ -138,7 +132,7 @@ export default async function HomePage() {
                 />
               </div>
               <Button asChild className="w-full">
-                <Link href="/habits">Check-in Habits</Link>
+                <Link href="/all-habits">Check-in Habits</Link>
               </Button>
             </div>
           </CardContent>
@@ -164,19 +158,18 @@ export default async function HomePage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Button asChild variant="outline" className="w-full">
-              <Link href="/habits/new">Add New Habit</Link>
+              {/* This page should be removed from the app*/}
+              <Link href="/new-habits">Add New Habit</Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/stats">View Statistics</Link>
+              <Link href="/ratings">View Ratings</Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/settings">Settings</Link>
+              <Link href="/habit-shop">Habit Shop</Link>
             </Button>
           </CardContent>
         </Card>
       </section>
-
-      {/* Recent Activity */}
       <section>
         <Card>
           <CardHeader>

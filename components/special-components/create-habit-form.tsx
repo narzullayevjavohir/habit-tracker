@@ -1,20 +1,13 @@
-// app/components/CreateHabitForm.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useHabitStore } from "@/store/habit-store";
+import { useUser } from "@clerk/nextjs";
+import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
@@ -23,6 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 
 const QUICK_ICONS = [
   "💪",
@@ -49,18 +49,29 @@ const QUICK_COLORS = [
   "#6366F1",
 ];
 
+interface HabitFormData {
+  title: string;
+  description?: string;
+  frequency: "daily" | "weekly" | "monthly";
+  target_count: number;
+  color: string;
+  icon: string;
+}
+
 interface CreateHabitFormProps {
   onSuccess?: () => void;
 }
 
 export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
   const router = useRouter();
-  const { createHabit, isLoading, error } = useHabitStore();
+  const { user } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<HabitFormData>({
     title: "",
     description: "",
-    frequency: "daily" as "daily" | "weekly" | "monthly",
+    frequency: "daily",
     target_count: 1,
     color: "#3B82F6",
     icon: "💪",
@@ -87,11 +98,42 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
     if (!validateForm()) return;
 
+    if (!user?.id) {
+      setError("You must be logged in to create a habit");
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      await createHabit(formData);
+      // Create the habit in Supabase
+      const { data, error: supabaseError } = await supabase
+        .from("habits")
+        .insert([
+          {
+            user_id: user.id,
+            title: formData.title,
+            description: formData.description,
+            frequency: formData.frequency,
+            target_count: formData.target_count,
+            color: formData.color,
+            icon: formData.icon,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            active: true,
+            current_streak: 0,
+            best_streak: 0,
+            total_completions: 0,
+          },
+        ])
+        .select()
+        .single();
+
+      if (supabaseError) throw supabaseError;
+
       setFormData({
         title: "",
         description: "",
@@ -105,10 +147,14 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/habits");
+        router.refresh(); // Refresh the page data
+        router.push("/all-habits");
       }
     } catch (error) {
       console.error("Failed to create habit:", error);
+      setError("Failed to create habit. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -172,7 +218,7 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
                       className={errors.description ? "border-red-500" : ""}
                     />
                     <div className="flex justify-between text-sm text-gray-500">
-                      <span>{formData.description.length}/200</span>
+                      <span>{formData.description?.length || 0}/200</span>
                       {errors.description && (
                         <span className="text-red-500">
                           {errors.description}

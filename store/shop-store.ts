@@ -44,7 +44,6 @@ export const useShopStore = create<ShopStore>((set, get) => ({
       const { data: shopItems, error } = await supabase
         .from("shop_items")
         .select("*")
-        .eq("is_available", true)
         .order("price_points", { ascending: true });
 
       if (error) throw error;
@@ -88,7 +87,7 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }
   },
 
-  purchaseItem: async (itemId: string) => {
+  purchaseItem: async (itemId: string): Promise<void> => {
     set({ isLoading: true, error: null });
 
     try {
@@ -97,7 +96,22 @@ export const useShopStore = create<ShopStore>((set, get) => ({
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Get user profile and points
+      // Get the shop item details
+      const { data: item, error: fetchError } = await supabase
+        .from("shop_items")
+        .select("*")
+        .eq("id", itemId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!item) throw new Error("Item not found");
+
+      // Start a transaction
+      const { error: txError } = await supabase.rpc("purchase_shop_item", {
+        p_user_id: user.id,
+        p_item_id: itemId,
+        p_points_cost: item.price_points,
+      });
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
@@ -176,11 +190,9 @@ export const useShopStore = create<ShopStore>((set, get) => ({
       // Refresh data
       await get().fetchUserPurchases();
       set({ isLoading: false });
-
-      return true;
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
-      return false;
+      throw error;
     }
   },
 
