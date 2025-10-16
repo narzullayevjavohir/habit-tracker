@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import CreateHabitForm from "@/components/special-components/create-habit-form";
+import { ResponsiveContainer } from "@/components/responsive/responsive-container";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -50,7 +51,7 @@ export default function CreateHabitPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <ResponsiveContainer className="py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Create New Habit</h1>
@@ -92,6 +93,6 @@ export default function CreateHabitPage() {
           <li>• Use descriptive titles for better tracking</li>
         </ul>
       </div>
-    </div>
+    </ResponsiveContainer>
   );
 }

@@ -1,86 +1,84 @@
 // lib/stores/ratings-store.ts
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase/client";
-import {
-  UserLevel,
-  Achievement,
-  UserAchievement,
-  LeaderboardUser,
-} from "@/types/ratings";
+
+interface UserLevel {
+  id: string;
+  user_id: string;
+  level: number;
+  points: number;
+  experience: number;
+  created_at: string;
+  updated_at: string;
+}
 
 interface RatingsStore {
   // State
   userLevel: UserLevel | null;
-  achievements: Achievement[];
-  userAchievements: UserAchievement[];
-  leaderboard: LeaderboardUser[];
   isLoading: boolean;
   error: string | null;
 
   // Actions
-  fetchUserLevel: () => Promise<void>;
-  fetchAchievements: () => Promise<void>;
-  fetchUserAchievements: () => Promise<void>;
-  fetchLeaderboard: (limit?: number) => Promise<void>;
-  awardPoints: (points: number, reason: string) => Promise<void>;
-  checkAchievements: () => Promise<void>;
+  fetchUserLevel: (clerkUserId: string) => Promise<void>;
+  addPoints: (clerkUserId: string, points: number) => Promise<void>;
+  addExperience: (clerkUserId: string, experience: number) => Promise<void>;
+  levelUp: (clerkUserId: string) => Promise<void>;
 
   // Utilities
+  getLevelProgress: () => number;
+  getNextLevelExperience: () => number;
   clearError: () => void;
-  calculateLevel: (points: number) => {
-    level: number;
-    current: number;
-    next: number;
-  };
 }
 
 export const useRatingsStore = create<RatingsStore>((set, get) => ({
   // Initial state
   userLevel: null,
-  achievements: [],
-  userAchievements: [],
-  leaderboard: [],
   isLoading: false,
   error: null,
 
-  // Fetch user level and points
-  fetchUserLevel: async () => {
+  // Fetch user level data
+  fetchUserLevel: async (clerkUserId: string) => {
+    if (!clerkUserId) return;
+
     set({ isLoading: true, error: null });
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
-
-      // Get user profile
+      // First get profile ID from clerk_user_id
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("clerk_user_id", user.id)
+        .eq("clerk_user_id", clerkUserId)
         .single();
 
       if (profileError) throw profileError;
-      if (!profile) throw new Error("Profile not found");
 
-      // Fetch or create user level
-      let { data: userLevel, error: levelError } = await supabase
+      // Then get user level data
+      const { data: userLevel, error: levelError } = await supabase
         .from("user_levels")
         .select("*")
         .eq("user_id", profile.id)
         .single();
 
-      if (levelError && levelError.code === "PGRST116") {
-        // Create user level record if it doesn't exist
-        const { data: newLevel, error: createError } = await supabase
-          .from("user_levels")
-          .insert([{ user_id: profile.id }])
-          .select()
-          .single();
+      if (levelError) {
+        // If no level record exists, create one
+        if (levelError.code === "PGRST116") {
+          const { data: newLevel, error: createError } = await supabase
+            .from("user_levels")
+            .insert([
+              {
+                user_id: profile.id,
+                level: 1,
+                points: 0,
+                experience: 0,
+              },
+            ])
+            .select()
+            .single();
 
-        if (createError) throw createError;
-        userLevel = newLevel;
-      } else if (levelError) {
+          if (createError) throw createError;
+          set({ userLevel: newLevel, isLoading: false });
+          return;
+        }
         throw levelError;
       }
 
@@ -90,176 +88,127 @@ export const useRatingsStore = create<RatingsStore>((set, get) => ({
     }
   },
 
-  // Fetch all available achievements
-  fetchAchievements: async () => {
+  // Add points to user
+  addPoints: async (clerkUserId: string, points: number) => {
+    if (!clerkUserId || points <= 0) return;
+
+    set({ isLoading: true, error: null });
+
     try {
-      const { data: achievements, error } = await supabase
-        .from("achievements")
-        .select("*")
-        .order("points_reward", { ascending: true });
-
-      if (error) throw error;
-      set({ achievements: achievements || [] });
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
-  },
-
-  // Fetch user's earned achievements
-  fetchUserAchievements: async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
-
+      // Get profile ID
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("clerk_user_id", user.id)
+        .eq("clerk_user_id", clerkUserId)
         .single();
 
       if (profileError) throw profileError;
 
-      const { data: userAchievements, error } = await supabase
-        .from("user_achievements")
-        .select(
-          `
-          *,
-          achievement:achievements(*)
-        `
-        )
-        .eq("user_id", profile.id)
-        .order("earned_at", { ascending: false });
+      // Add points using RPC function
+      const { error: pointsError } = await supabase.rpc("add_user_points", {
+        user_id: profile.id,
+        points_to_add: points,
+      });
 
-      if (error) throw error;
-      set({ userAchievements: userAchievements || [] });
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
-  },
+      if (pointsError) throw pointsError;
 
-  // Fetch leaderboard
-  fetchLeaderboard: async (limit = 50) => {
-    set({ isLoading: true });
-
-    try {
-      const { data: leaderboard, error } = await supabase
-        .from("user_levels")
-        .select(
-          `
-          points,
-          level,
-          current_streak,
-          profile:profiles!inner(email, first_name, last_name)
-        `
-        )
-        .order("points", { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-
-      const rankedLeaderboard = (leaderboard || []).map((item, index) => ({
-        user_id: item.profile.id,
-        email: item.profile.email,
-        first_name: item.profile.first_name,
-        last_name: item.profile.last_name,
-        points: item.points,
-        level: item.level,
-        current_streak: item.current_streak,
-        rank: index + 1,
-      }));
-
-      set({ leaderboard: rankedLeaderboard, isLoading: false });
+      // Refresh user level data
+      await get().fetchUserLevel(clerkUserId);
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 
-  // Award points to user
-  awardPoints: async (points: number, reason: string) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
+  // Add experience to user
+  addExperience: async (clerkUserId: string, experience: number) => {
+    if (!clerkUserId || experience <= 0) return;
 
+    set({ isLoading: true, error: null });
+
+    try {
+      // Get profile ID
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("clerk_user_id", user.id)
+        .eq("clerk_user_id", clerkUserId)
         .single();
 
       if (profileError) throw profileError;
 
-      // Update user points
-      const { data: updatedLevel, error } = await supabase.rpc(
-        "increment_user_points",
-        {
-          user_id: profile.id,
-          points_to_add: points,
-          activity_reason: reason,
+      // Add experience using RPC function
+      const { error: expError } = await supabase.rpc("add_user_experience", {
+        user_id: profile.id,
+        exp_to_add: experience,
+      });
+
+      if (expError) throw expError;
+
+      // Check if user should level up
+      const { userLevel } = get();
+      if (userLevel) {
+        const nextLevelExp = get().getNextLevelExperience();
+        if (userLevel.experience + experience >= nextLevelExp) {
+          await get().levelUp(clerkUserId);
+        } else {
+          // Refresh user level data
+          await get().fetchUserLevel(clerkUserId);
         }
-      );
-
-      if (error) throw error;
-
-      // Update local state
-      set((state) => ({
-        userLevel: updatedLevel
-          ? { ...state.userLevel, ...updatedLevel }
-          : state.userLevel,
-      }));
-
-      // Check for new achievements
-      get().checkAchievements();
+      }
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 
-  // Check and award achievements
-  checkAchievements: async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+  // Level up user
+  levelUp: async (clerkUserId: string) => {
+    if (!clerkUserId) return;
 
+    set({ isLoading: true, error: null });
+
+    try {
+      // Get profile ID
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("clerk_user_id", user.id)
+        .eq("clerk_user_id", clerkUserId)
         .single();
 
       if (profileError) throw profileError;
 
-      // This would call a PostgreSQL function to check and award achievements
-      const { error } = await supabase.rpc("check_user_achievements", {
+      // Level up using RPC function
+      const { error: levelUpError } = await supabase.rpc("level_up_user", {
         user_id: profile.id,
       });
 
-      if (error) throw error;
+      if (levelUpError) throw levelUpError;
 
-      // Refresh achievements
-      get().fetchUserAchievements();
+      // Refresh user level data
+      await get().fetchUserLevel(clerkUserId);
     } catch (error) {
-      console.error("Error checking achievements:", error);
+      set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 
-  // Calculate level based on points
-  calculateLevel: (points: number) => {
-    const basePoints = 100;
-    const level = Math.floor(Math.sqrt(points / basePoints)) + 1;
-    const currentLevelPoints = basePoints * Math.pow(level - 1, 2);
-    const nextLevelPoints = basePoints * Math.pow(level, 2);
+  // Utility functions
+  getLevelProgress: () => {
+    const { userLevel } = get();
+    if (!userLevel) return 0;
 
-    return {
-      level,
-      current: points - currentLevelPoints,
-      next: nextLevelPoints - currentLevelPoints,
-    };
+    const currentLevelExp = (userLevel.level - 1) * 100; // Base experience for current level
+    const currentExpInLevel = userLevel.experience - currentLevelExp;
+    const expNeededForNextLevel = 100; // Fixed 100 exp per level
+
+    return (currentExpInLevel / expNeededForNextLevel) * 100;
+  },
+
+  getNextLevelExperience: () => {
+    const { userLevel } = get();
+    if (!userLevel) return 100;
+
+    return userLevel.level * 100; // Each level requires 100 more experience
   },
 
   clearError: () => set({ error: null }),

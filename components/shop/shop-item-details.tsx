@@ -13,6 +13,7 @@ import { ShoppingCart, Coins } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { ShopItem } from "@/types/shop";
+import { useShopStore } from "@/store/shop-store";
 
 interface ShopItemDetailsProps {
   item: ShopItem | null;
@@ -31,6 +32,8 @@ export function ShopItemDetails({
   isPurchased,
   userPoints,
 }: ShopItemDetailsProps) {
+  const { getRarityColor, getCategoryIcon } = useShopStore();
+
   if (!item) return null;
 
   const canAfford = userPoints >= item.price_points;
@@ -61,22 +64,13 @@ export function ShopItemDetails({
             <p className="text-sm text-gray-500">{item.description}</p>
 
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">{item.category}</Badge>
+              <Badge variant="secondary">
+                <span className="mr-1">{getCategoryIcon(item.category)}</span>
+                {item.category}
+              </Badge>
               <Badge
                 variant="outline"
-                className="capitalize"
-                style={{
-                  backgroundColor:
-                    item.rarity === "common"
-                      ? "#e5e7eb"
-                      : item.rarity === "rare"
-                      ? "#93c5fd"
-                      : item.rarity === "epic"
-                      ? "#c084fc"
-                      : item.rarity === "legendary"
-                      ? "#fcd34d"
-                      : "#e5e7eb",
-                }}
+                className={`capitalize ${getRarityColor(item.rarity)}`}
               >
                 {item.rarity}
               </Badge>

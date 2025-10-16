@@ -13,13 +13,13 @@ interface ShopStore {
 
   // Actions
   fetchShopItems: () => Promise<void>;
-  fetchUserPurchases: () => Promise<void>;
-  purchaseItem: (itemId: string) => Promise<void>;
+  fetchUserPurchases: (clerkUserId: string) => Promise<void>;
+  purchaseItem: (itemId: string, clerkUserId: string) => Promise<void>;
   addToCart: (item: ShopItem) => void;
   removeFromCart: (itemId: string) => void;
   clearCart: () => void;
   getCartTotal: () => number;
-  getUserPoints: () => Promise<number>;
+  getUserPoints: (clerkUserId: string) => Promise<number>;
 
   // Utilities
   getRarityColor: (rarity: string) => string;
@@ -53,18 +53,17 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }
   },
 
-  // Fetch user's purchases
-  fetchUserPurchases: async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
+  fetchUserPurchases: async (clerkUserId: string) => {
+    if (!clerkUserId) {
+      set({ userPurchases: [] });
+      return;
+    }
 
+    try {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("clerk_user_id", user.id)
+        .eq("clerk_user_id", clerkUserId)
         .single();
 
       if (profileError) throw profileError;
@@ -87,46 +86,20 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }
   },
 
-  purchaseItem: async (itemId: string): Promise<void> => {
+  purchaseItem: async (itemId: string, clerkUserId: string): Promise<void> => {
+    if (!clerkUserId) throw new Error("User not authenticated");
+
     set({ isLoading: true, error: null });
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
-
-      // Get the shop item details
-      const { data: item, error: fetchError } = await supabase
-        .from("shop_items")
-        .select("*")
-        .eq("id", itemId)
-        .single();
-
-      if (fetchError) throw fetchError;
-      if (!item) throw new Error("Item not found");
-
-      // Start a transaction
-      const { error: txError } = await supabase.rpc("purchase_shop_item", {
-        p_user_id: user.id,
-        p_item_id: itemId,
-        p_points_cost: item.price_points,
-      });
+      // Get user profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("clerk_user_id", user.id)
+        .eq("clerk_user_id", clerkUserId)
         .single();
 
       if (profileError) throw profileError;
-
-      const { data: userLevel, error: levelError } = await supabase
-        .from("user_levels")
-        .select("points")
-        .eq("user_id", profile.id)
-        .single();
-
-      if (levelError) throw levelError;
 
       // Get item details
       const { data: shopItem, error: itemError } = await supabase
@@ -136,13 +109,22 @@ export const useShopStore = create<ShopStore>((set, get) => ({
         .single();
 
       if (itemError) throw itemError;
+      if (!shopItem) throw new Error("Item not found");
 
-      // Check if user has enough points
+      // Check user points
+      const { data: userLevel, error: levelError } = await supabase
+        .from("user_levels")
+        .select("points")
+        .eq("user_id", profile.id)
+        .single();
+
+      if (levelError) throw levelError;
+
       if (userLevel.points < shopItem.price_points) {
         throw new Error("Insufficient points");
       }
 
-      // Check if item is already purchased (for permanent items)
+      // For permanent items, check if already purchased
       if (!shopItem.duration_days) {
         const { data: existingPurchase } = await supabase
           .from("user_purchases")
@@ -163,32 +145,21 @@ export const useShopStore = create<ShopStore>((set, get) => ({
         expires_at.setDate(expires_at.getDate() + shopItem.duration_days);
       }
 
-      // Create purchase record
-      const { error: purchaseError } = await supabase
-        .from("user_purchases")
-        .insert([
-          {
-            user_id: profile.id,
-            shop_item_id: itemId,
-            expires_at: expires_at?.toISOString(),
-          },
-        ]);
-
-      if (purchaseError) throw purchaseError;
-
-      // Deduct points from user
-      const { error: pointsError } = await supabase.rpc(
-        "decrement_user_points",
+      // Use transaction for purchase
+      const { error: purchaseError } = await supabase.rpc(
+        "purchase_shop_item",
         {
-          user_id: profile.id,
-          points_to_deduct: shopItem.price_points,
+          p_user_id: profile.id,
+          p_item_id: itemId,
+          p_points_cost: shopItem.price_points,
+          p_expires_at: expires_at?.toISOString(),
         }
       );
 
-      if (pointsError) throw pointsError;
+      if (purchaseError) throw purchaseError;
 
       // Refresh data
-      await get().fetchUserPurchases();
+      await get().fetchUserPurchases(clerkUserId);
       set({ isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
@@ -196,7 +167,7 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }
   },
 
-  // Cart management
+  // Cart management (unchanged)
   addToCart: (item: ShopItem) => {
     set((state) => {
       const existingItem = state.cart.find(
@@ -237,18 +208,14 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     );
   },
 
-  // Get user's current points
-  getUserPoints: async (): Promise<number> => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return 0;
+  getUserPoints: async (clerkUserId: string): Promise<number> => {
+    if (!clerkUserId) return 0;
 
+    try {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("clerk_user_id", user.id)
+        .eq("clerk_user_id", clerkUserId)
         .single();
 
       if (profileError) throw profileError;
@@ -268,7 +235,7 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }
   },
 
-  // Utility functions
+  // Utility functions (unchanged)
   getRarityColor: (rarity: string) => {
     switch (rarity) {
       case "common":

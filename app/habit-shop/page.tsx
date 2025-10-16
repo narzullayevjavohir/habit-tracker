@@ -19,7 +19,7 @@ import { ShopItem } from "@/types/shop";
 import { cn } from "@/lib/utils";
 
 export default function ShopPage() {
-  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser();
   const router = useRouter();
   const {
     shopItems,
@@ -39,15 +39,11 @@ export default function ShopPage() {
     isItemPurchased,
   } = useShopStore();
 
-  // New state for enhanced features
+  const { userLevel, fetchUserLevel } = useRatingsStore();
+  const { showToast } = useToast();
+
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const itemsPerPage = 12;
-
-  const { userLevel } = useRatingsStore();
-  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [userPoints, setUserPoints] = useState(0);
@@ -55,8 +51,10 @@ export default function ShopPage() {
 
   const loadUserPoints = async () => {
     try {
-      const points = await getUserPoints();
-      setUserPoints(points);
+      if (user) {
+        const points = await getUserPoints(user.id);
+        setUserPoints(points);
+      }
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Failed to load points",
@@ -65,22 +63,6 @@ export default function ShopPage() {
       setUserPoints(0);
     }
   };
-
-  // Infinite scroll setup
-  const loadMoreItems = async () => {
-    const nextPage = page + 1;
-    const start = (nextPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-
-    if (end >= filteredItems.length) {
-      setHasMore(false);
-    } else {
-      setPage(nextPage);
-    }
-  };
-
-  const { ref: infiniteScrollRef, isLoading: isLoadingMore } =
-    useInfiniteScroll(loadMoreItems, hasMore);
 
   useEffect(() => {
     const initializeShop = async () => {
@@ -92,12 +74,15 @@ export default function ShopPage() {
           return;
         }
 
-        // Initialize shop data only if user is authenticated
-        await Promise.all([
-          fetchShopItems(),
-          fetchUserPurchases(),
-          loadUserPoints(),
-        ]);
+        if (user) {
+          // Initialize shop data only if user is authenticated
+          await Promise.all([
+            fetchShopItems(),
+            fetchUserPurchases(user.id),
+            loadUserPoints(),
+            fetchUserLevel(user.id),
+          ]);
+        }
       } catch (error) {
         showToast(
           error instanceof Error ? error.message : "Failed to load shop data",
@@ -111,8 +96,10 @@ export default function ShopPage() {
     isLoaded,
     isSignedIn,
     router,
+    user,
     fetchShopItems,
     fetchUserPurchases,
+    fetchUserLevel,
     showToast,
   ]);
 
@@ -136,8 +123,10 @@ export default function ShopPage() {
 
   const handlePurchase = async (itemId: string) => {
     try {
+      if (!user) return;
+
       setIsPurchasing(true);
-      await purchaseItem(itemId);
+      await purchaseItem(itemId, user.id);
       await loadUserPoints(); // Refresh points
       showToast("Item purchased successfully!", "success");
     } catch (error) {
@@ -152,10 +141,12 @@ export default function ShopPage() {
 
   const handleCartPurchase = async () => {
     try {
+      if (!user) return;
+
       setIsPurchasing(true);
       for (const cartItem of cart) {
         for (let i = 0; i < cartItem.quantity; i++) {
-          await purchaseItem(cartItem.shop_item.id);
+          await purchaseItem(cartItem.shop_item.id, user.id);
         }
       }
       await loadUserPoints();
@@ -288,7 +279,9 @@ export default function ShopPage() {
                     className="flex items-center justify-between p-2 bg-gray-50 rounded"
                   >
                     <div className="flex items-center space-x-2">
-                      <span className="text-lg">{item.shop_item.icon}</span>
+                      <span className="text-lg">
+                        {getCategoryIcon(item.shop_item.category)}
+                      </span>
                       <div>
                         <div className="font-medium text-sm">
                           {item.shop_item.name}
@@ -393,8 +386,8 @@ export default function ShopPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
-                          <span className="text-3xl transform transition-transform group-hover:scale-110">
-                            {item.icon}
+                          <span className="text-3xl">
+                            {getCategoryIcon(item.category)}
                           </span>
                           <div>
                             <CardTitle className="text-lg">
@@ -404,7 +397,7 @@ export default function ShopPage() {
                               variant="secondary"
                               className="mt-1 transition-colors hover:bg-primary/20"
                             >
-                              {getCategoryIcon(item.category)} {item.category}
+                              {item.category}
                             </Badge>
                           </div>
                         </div>

@@ -166,8 +166,8 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
   };
 
   return (
-    <div className="pt-14 h-screen">
-      <Card className="w-full max-w-6xl mx-auto">
+    <div className="pt-6">
+      <Card className="w-full max-w-3xl mx-auto">
         <CardHeader className="pb-4">
           <CardTitle className="text-2xl font-bold">Create New Habit</CardTitle>
           <CardDescription>
@@ -184,7 +184,7 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
             )}
 
             {/* Main Horizontal Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left Column - Basic Info */}
               <div className="space-y-6">
                 {/* Title & Description */}
@@ -229,7 +229,7 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
                 </div>
 
                 {/* Frequency & Target Count - Side by side */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="frequency">Frequency</Label>
                     <Select
@@ -277,7 +277,8 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
                 {/* Icon Selection */}
                 <div className="space-y-3">
                   <Label>Icon</Label>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-5 gap-2 md:grid-cols-5 overflow-x-auto">
+                    {/* make icons horizontally scrollable on small screens */}
                     {QUICK_ICONS.map((icon) => (
                       <button
                         key={icon}
@@ -298,7 +299,8 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
                 {/* Color Selection */}
                 <div className="space-y-3">
                   <Label>Color</Label>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-5 gap-2 md:grid-cols-5 overflow-x-auto">
+                    {/* make colors horizontally scrollable on small screens */}
                     {QUICK_COLORS.map((color) => (
                       <button
                         key={color}
@@ -348,17 +350,21 @@ export default function CreateHabitForm({ onSuccess }: CreateHabitFormProps) {
             </div>
 
             {/* Submit Buttons */}
-            <div className="flex space-x-4 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
                 disabled={isLoading}
-                className="flex-1"
+                className="w-full sm:flex-1"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading} className="flex-1">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full sm:flex-1"
+              >
                 {isLoading ? (
                   <span className="flex items-center">
                     <svg
