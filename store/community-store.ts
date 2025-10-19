@@ -37,6 +37,8 @@ interface ChatRoom {
 }
 
 interface Message {
+  isRead: any;
+  user_id: string;
   id: string;
   content: string;
   user: User;
