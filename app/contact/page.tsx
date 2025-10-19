@@ -41,7 +41,7 @@ export default function ContactPage() {
         </p>
       </div>
 
-      {/* Main Content */}
+      {/* Main Contact Form */}
       <ContactForm />
 
       {/* Additional Support Options */}
