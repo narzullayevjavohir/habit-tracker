@@ -119,4 +119,3 @@ export interface Database {
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Habit = Database["public"]["Tables"]["habits"]["Row"];
 export type HabitEntry = Database["public"]["Tables"]["habit_entries"]["Row"];
-

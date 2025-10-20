@@ -4,16 +4,9 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search,
   Plus,
@@ -25,9 +18,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
 
 import { Habit, HabitEntry, HabitStatus } from "@/types/habit";
+import HabitCard from "@/components/all-habits-components/habit-card";
+import ErrorComponent from "@/components/all-habits-components/error-component";
 
 export default function AllHabits() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -106,20 +100,7 @@ export default function AllHabits() {
   }
 
   if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="flex flex-col items-center pt-6">
-            <div className="rounded-full bg-red-100 p-3 mb-4">
-              <AlertCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Error Loading Habits</h3>
-            <p className="text-sm text-gray-500 text-center mb-4">{error}</p>
-            <Button onClick={() => fetchHabits()}>Try Again</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorComponent error={error} fetchHabits={fetchHabits} />;
   }
 
   const filteredHabits = habits.filter((habit: Habit) => {
@@ -383,104 +364,14 @@ export default function AllHabits() {
             const streak = getStreak(habit);
 
             return (
-              <Card
+              <HabitCard
                 key={habit.id}
-                className={`transition-all hover:shadow-md ${
-                  !habit.is_active ? "opacity-60" : ""
-                } ${isCompleted ? "border-green-200 bg-green-50" : ""}`}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span
-                        className="text-2xl p-2 rounded-full"
-                        style={{ backgroundColor: habit.color + "20" }}
-                      >
-                        {habit.icon}
-                      </span>
-                      <div>
-                        <CardTitle className="text-lg font-semibold">
-                          {habit.title}
-                        </CardTitle>
-                        <CardDescription className="text-sm">
-                          {habit.target_count} time
-                          {habit.target_count > 1 ? "s" : ""} {habit.frequency}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    {!habit.is_active && (
-                      <Badge variant="secondary" className="text-xs">
-                        Inactive
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                  {/* Description */}
-                  {habit.description && (
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {habit.description}
-                    </p>
-                  )}
-
-                  {/* Stats */}
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>🔥 {streak} day streak</span>
-                    <span>{completionRate}% success</span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full transition-all"
-                      style={{
-                        width: `${completionRate}%`,
-                        backgroundColor: habit.color,
-                      }}
-                    ></div>
-                  </div>
-
-                  {/* Action Button */}
-                  <Button
-                    onClick={() => handleToggleEntry(habit.id)}
-                    variant={isCompleted ? "default" : "outline"}
-                    disabled={!habit.is_active}
-                    className="w-full"
-                    style={isCompleted ? { backgroundColor: habit.color } : {}}
-                  >
-                    {isCompleted ? (
-                      <>
-                        <span>✅ Completed</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Mark as Done</span>
-                      </>
-                    )}
-                  </Button>
-
-                  {/* Quick Actions */}
-                  <div className="flex space-x-2">
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      <Link href={`/habits/${habit.id}`}>View</Link>
-                    </Button>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      <Link href={`/habits/${habit.id}/edit`}>Edit</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                habit={habit}
+                streak={streak}
+                completionRate={completionRate}
+                isCompleted={isCompleted}
+                handleToggleEntry={handleToggleEntry}
+              />
             );
           })}
         </div>
