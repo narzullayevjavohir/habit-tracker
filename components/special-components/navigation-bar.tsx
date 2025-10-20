@@ -8,12 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: string;
-}
+import { navItems } from "@/lib/utils/static-items";
 
 function NavigationBar() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -24,16 +19,6 @@ function NavigationBar() {
   if (!isLoaded || !isSignedIn) {
     return null;
   }
-
-  const navItems: NavItem[] = [
-    { href: "/", label: "Home", icon: "🏠" },
-    { href: "/all-habits", label: "All Habits", icon: "🎖️" },
-    { href: "/ratings", label: "Ratings", icon: "🏆" },
-    { href: "/new-habits", label: "New Habits", icon: "✨" },
-    { href: "/events", label: "Events", icon: "❄️" },
-    { href: "/habit-shop", label: "Shop", icon: "🛒" },
-    { href: "/contact", label: "Contact", icon: "📞" },
-  ];
 
   const isActive = (href: string): boolean => {
     if (href === "/") return pathname === "/";

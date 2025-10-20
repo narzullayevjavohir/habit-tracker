@@ -11,7 +11,6 @@ export default function CommunityPage() {
   const [activeTab, setActiveTab] = useState("events");
   const [search, setSearch] = useState("");
 
-  // Mock data
   const events = [
     {
       id: 1,

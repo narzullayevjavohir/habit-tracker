@@ -8,8 +8,8 @@ import {
 } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import Link from "next/link";
 import { Habit } from "@/types/habit";
+import { HabitActionButton } from "./ActionButton";
 
 type HabitCardProps = {
   habit: Habit;
@@ -106,30 +106,9 @@ function HabitCard({
 
         {/* Quick Actions */}
         <div className="flex space-x-2">
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="flex-1 hover:bg-gray-400 hover:text-white"
-          >
-            <Link href={`/habits/${habit.id}`}>View</Link>
-          </Button>
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="flex-1 hover:bg-yellow-400 hover:text-white"
-          >
-            <Link href={`/habits/${habit.id}/edit`}>Edit</Link>
-          </Button>
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="flex-1 hover:bg-red-400 hover:text-white"
-          >
-            <Link href={`/habits/${habit.id}/delete`}>Delete</Link>
-          </Button>
+          <HabitActionButton habitId={habit.id} variant="view" />
+          <HabitActionButton habitId={habit.id} variant="edit" />
+          <HabitActionButton habitId={habit.id} variant="delete" />
         </div>
       </CardContent>
     </Card>
